@@ -14,9 +14,14 @@
 #include <glm/mat4x4.hpp> // glm::mat4
 #include <glm/gtc/matrix_transform.hpp> // glm::translate, glm::rotate, glm::perspective
 #include <glm/gtc/type_ptr.hpp>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 
 int gl_width = 640;
 int gl_height = 480;
+
+
 
 void glfw_window_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -24,9 +29,12 @@ void render(double);
 
 GLuint shader_program = 0; // shader program to set render pipeline
 GLuint vao = 0; // Vertext Array Object to set input data
+GLuint texture = 0;  // Texture to paste on polygon
 GLint mv_location, proj_location; // Uniforms for transformation matrices
 
 int main() {
+  
+ 
   // start GL context and O/S window using the GLFW helper library
   if (!glfwInit()) {
     fprintf(stderr, "ERROR: could not start GLFW3\n");
@@ -67,32 +75,33 @@ int main() {
   glDepthFunc(GL_LESS); // set a smaller value as "closer"
 
   // Vertex Shader
-  const char* vertex_shader =
-    "#version 130\n"
-
-    "in vec4 v_pos;"
-
-    "out vec4 vs_color;"
-
-    "uniform mat4 mv_matrix;"
-    "uniform mat4 proj_matrix;"
-
-    "void main() {"
-    "  gl_Position = proj_matrix * mv_matrix * v_pos;"
-    "  vs_color = v_pos * 2.0 + vec4(0.4, 0.4, 0.4, 0.0);"
-    "}";
+   const char* vertex_shader =
+        "#version 130\n"
+        "in vec4 v_pos;\n"
+        "in vec2 texCoord;\n" // Added texture coordinate input
+        "out vec2 fragTexCoord;\n" // Pass texture coordinate to fragment shader
+        "uniform mat4 mv_matrix;\n"
+        "uniform mat4 proj_matrix;\n"
+        "void main() {\n"
+        "  gl_Position = proj_matrix * mv_matrix * v_pos;\n"
+        "  fragTexCoord = texCoord;\n" // Pass texture coordinate
+        "}\n";
 
   // Fragment Shader
   const char* fragment_shader =
-    "#version 130\n"
+        "#version 130\n"
+        "in vec2 fragTexCoord;\n" // Received texture coordinate
+        "out vec4 frag_color;\n"
+        "uniform sampler2D tex;\n" // Texture sampler
+        "void main() {\n"
+        // Use texture on a specific face, e.g., when z-coordinate is closest to the camera
+        "  if (gl_FragCoord.z < 0.5) {\n"
+        "    frag_color = texture(tex, fragTexCoord);\n" // Apply texture
+        "  } else {\n"
+        "    frag_color = vec4(1, 1, 1, 1);\n" // Default color for other faces
+        "  }\n"
+        "}\n";
 
-    "out vec4 frag_col;"
-
-    "in vec4 vs_color;"
-
-    "void main() {"
-    "  frag_col = vs_color;"
-    "}";
 
   // Shaders compilation
   GLuint vs = glCreateShader(GL_VERTEX_SHADER);
@@ -175,16 +184,44 @@ int main() {
      0.25f,  0.25f, -0.25f  // 3
   };
 
-  // Vertex Buffer Object (for vertex coordinates)
-  GLuint vbo = 0;
-  glGenBuffers(1, &vbo);
-  glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_positions), vertex_positions, GL_STATIC_DRAW);
+  float texCoords[] = {
+    0.0f, 0.0f,
+    1.0f, 0.0f,
+    1.0f, 1.0f,
+    0.0f, 0.0f,
+    1.0f, 1.0f,
+    0.0f, 1.0f,
+};
 
-  // Vertex attributes
-  // 0: vertex position (x, y, z)
+
+
+  
+  // Uniforms
+  // - Model-View matrix
+  // - Projection matrix
+  mv_location = glGetUniformLocation(shader_program, "mv_matrix");
+  proj_location = glGetUniformLocation(shader_program, "proj_matrix");
+
+  // VAO, VBOs
+  GLuint vbo[2];
+  glGenVertexArrays(1, &vao);
+  glGenBuffers(2, vbo);
+
+  glBindVertexArray(vao);
+
+  // VBO: 3D vertices
+  glBindBuffer(GL_ARRAY_BUFFER, vbo[0]);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertex_positions), vertex_positions, GL_STATIC_DRAW);
+  // 0: vertex position attribute
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
   glEnableVertexAttribArray(0);
+
+  // VBO: Texture coords
+  glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(texCoords), texCoords, GL_STATIC_DRAW);
+  // 1: vertex texCoord attribute
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, NULL);
+  glEnableVertexAttribArray(1);
 
   // Unbind vbo (it was conveniently registered by VertexAttribPointer)
   glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -192,11 +229,36 @@ int main() {
   // Unbind vao
   glBindVertexArray(0);
 
-  // Uniforms
-  // - Model-View matrix
-  // - Projection matrix
-  mv_location = glGetUniformLocation(shader_program, "mv_matrix");
-  proj_location = glGetUniformLocation(shader_program, "proj_matrix");
+  // Create texture object
+  glGenTextures(1, &texture);
+  glBindTexture(GL_TEXTURE_2D, texture);
+  
+
+  // Set the texture wrapping/filtering options (on the currently bound texture object)
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  
+  // Load image for texture
+  int width, height, nrChannels;
+  // Before loading the image, we flip it vertically because
+  // Images: 0.0 top of y-axis  OpenGL: 0.0 bottom of y-axis
+  stbi_set_flip_vertically_on_load(1);
+  unsigned char *data = stbi_load("texture.jpg", &width, &height, &nrChannels, 0);
+  // Image from http://www.flickr.com/photos/seier/4364156221
+  // CC-BY-SA 2.0
+  if (data) {
+    // Generate texture from image
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+  } else {
+    printf("Failed to load texture\n");
+  }
+
+  // Free image once texture is generated
+  stbi_image_free(data);
+
 
   // Render loop
   while(!glfwWindowShouldClose(window)) {
@@ -223,6 +285,11 @@ void render(double currentTime) {
   glViewport(0, 0, gl_width, gl_height);
 
   glUseProgram(shader_program);
+  
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, texture);
+  glUniform1i(glGetUniformLocation(shader_program, "tex"), 0);
+  
   glBindVertexArray(vao);
 
   glm::mat4 mv_matrix, proj_matrix;
@@ -249,6 +316,7 @@ void render(double currentTime) {
 
   glDrawArrays(GL_TRIANGLES, 0, 36);
 }
+
 
 void processInput(GLFWwindow *window) {
   if(glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
