@@ -22,7 +22,6 @@ int gl_width = 640;
 int gl_height = 480;
 
 
-
 void glfw_window_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 void render(double);
@@ -80,27 +79,30 @@ int main() {
         "in vec4 v_pos;\n"
         "in vec2 texCoord;\n" // Added texture coordinate input
         "out vec2 fragTexCoord;\n" // Pass texture coordinate to fragment shader
+       "out vec4 vs_color;\n"
         "uniform mat4 mv_matrix;\n"
         "uniform mat4 proj_matrix;\n"
         "void main() {\n"
         "  gl_Position = proj_matrix * mv_matrix * v_pos;\n"
         "  fragTexCoord = texCoord;\n" // Pass texture coordinate
+       "  vs_color = v_pos * 2.0 + vec4(0.4, 0.4, 0.4, 0.0);\n"
         "}\n";
 
   // Fragment Shader
-  const char* fragment_shader =
-        "#version 130\n"
-        "in vec2 fragTexCoord;\n" // Received texture coordinate
-        "out vec4 frag_color;\n"
-        "uniform sampler2D tex;\n" // Texture sampler
-        "void main() {\n"
-        // Use texture on a specific face, e.g., when z-coordinate is closest to the camera
-        "  if (gl_FragCoord.z < 0.5) {\n"
-        "    frag_color = texture(tex, fragTexCoord);\n" // Apply texture
-        "  } else {\n"
-        "    frag_color = vec4(1, 1, 1, 1);\n" // Default color for other faces
-        "  }\n"
-        "}\n";
+   const char* fragment_shader =
+       "#version 130\n"
+       "in vec2 fragTexCoord;\n" // Received texture coordinate
+       "in vec4 vs_color;\n"
+       "out vec4 frag_color;\n"
+       "uniform sampler2D tex;\n" // Texture sampler
+       "uniform bool applyTexture;\n" // Control the texture application
+       "void main() {\n"
+       "  if (applyTexture) {\n"
+       "    frag_color = texture(tex, fragTexCoord);\n" // Apply texture
+       "  } else {\n"
+       "    frag_color = vs_color;\n" // Default color for other faces
+       "  }\n"
+       "}\n";
 
 
   // Shaders compilation
@@ -278,43 +280,41 @@ int main() {
 }
 
 void render(double currentTime) {
-  float f = (float)currentTime * 0.3f;
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glUseProgram(shader_program);
 
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    // Activa la textura
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glUniform1i(glGetUniformLocation(shader_program, "tex"), 0);
 
-  glViewport(0, 0, gl_width, gl_height);
+    // Configuraciones de la matriz de vista/proyección
+    glm::mat4 view = glm::mat4(1.0f); // Matriz de vista inicial
+    glm::mat4 projection = glm::perspective(glm::radians(50.0f), (float)gl_width / (float)gl_height, 0.1f, 1000.0f);
+    glUniformMatrix4fv(proj_location, 1, GL_FALSE, glm::value_ptr(projection));
 
-  glUseProgram(shader_program);
-  
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, texture);
-  glUniform1i(glGetUniformLocation(shader_program, "tex"), 0);
-  
-  glBindVertexArray(vao);
+    // Matriz de modelo con rotaciones y traslaciones
+    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -4.0f));
+    model = glm::rotate(model, glm::radians((float)currentTime * 45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    model = glm::rotate(model, glm::radians((float)currentTime * 81.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
-  glm::mat4 mv_matrix, proj_matrix;
+    // Envía las matrices al shader
+    glUniformMatrix4fv(mv_location, 1, GL_FALSE, glm::value_ptr(model));
 
-  mv_matrix = glm::translate(glm::mat4(1.f), glm::vec3(0.0f, 0.0f, -4.0f));
-  mv_matrix = glm::translate(mv_matrix,
-                             glm::vec3(sinf(2.1f * f) * 0.5f,
-                                       cosf(1.7f * f) * 0.5f,
-                                       sinf(1.3f * f) * cosf(1.5f * f) * 2.0f));
+    glBindVertexArray(vao);
 
-  mv_matrix = glm::rotate(mv_matrix,
-                          glm::radians((float)currentTime * 45.0f),
-                          glm::vec3(0.0f, 1.0f, 0.0f));
-  mv_matrix = glm::rotate(mv_matrix,
-                          glm::radians((float)currentTime * 81.0f),
-                          glm::vec3(1.0f, 0.0f, 0.0f));
+    // Define si aplicar la textura o no
+    GLint applyTextureLoc = glGetUniformLocation(shader_program, "applyTexture");
 
-  glUniformMatrix4fv(mv_location, 1, GL_FALSE, glm::value_ptr(mv_matrix));
+    // Dibuja la cara texturizada
+    glUniform1i(applyTextureLoc, GL_TRUE);
+    glDrawArrays(GL_TRIANGLES, 0, 6); // Dibuja solo la cara frontal
 
-  proj_matrix = glm::perspective(glm::radians(50.0f),
-                                 (float) gl_width / (float) gl_height,
-                                 0.1f, 1000.0f);
-  glUniformMatrix4fv(proj_location, 1, GL_FALSE, glm::value_ptr(proj_matrix));
+    // Dibuja el resto del cubo sin textura
+    glUniform1i(applyTextureLoc, GL_FALSE);
+    glDrawArrays(GL_TRIANGLES, 6, 36 - 6); // Dibuja el resto del cubo
 
-  glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
 }
 
 
