@@ -280,6 +280,8 @@ int main() {
 }
 
 void render(double currentTime) {
+  float f = (float)currentTime * 0.3f;
+  
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glUseProgram(shader_program);
 
@@ -289,12 +291,12 @@ void render(double currentTime) {
     glUniform1i(glGetUniformLocation(shader_program, "tex"), 0);
 
     // Configuraciones de la matriz de vista/proyección
-    glm::mat4 view = glm::mat4(1.0f); // Matriz de vista inicial
     glm::mat4 projection = glm::perspective(glm::radians(50.0f), (float)gl_width / (float)gl_height, 0.1f, 1000.0f);
     glUniformMatrix4fv(proj_location, 1, GL_FALSE, glm::value_ptr(projection));
 
     // Matriz de modelo con rotaciones y traslaciones
     glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -4.0f));
+    model = glm::translate(model, glm::vec3(sinf(2.1f * f) * 0.5f, cosf(1.7f * f) * 0.5f, sinf(1.3f * f) * cosf(1.5f * f) * 2.0f));
     model = glm::rotate(model, glm::radians((float)currentTime * 45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     model = glm::rotate(model, glm::radians((float)currentTime * 81.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
@@ -314,7 +316,6 @@ void render(double currentTime) {
     glUniform1i(applyTextureLoc, GL_FALSE);
     glDrawArrays(GL_TRIANGLES, 6, 36 - 6); // Dibuja el resto del cubo
 
-    glBindVertexArray(0);
 }
 
 
