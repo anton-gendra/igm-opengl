@@ -92,7 +92,6 @@ int main(int argc, char *argv[])
 {
     // Load the model
     osg::ref_ptr<osg::Node> loadedModel = osgDB::readNodeFile("cube.obj");
-    osg::ref_ptr<osg::Node> loadedModel2 = osgDB::readNodeFile("cube.obj");
 
     if (!loadedModel)
     {
@@ -113,7 +112,7 @@ int main(int argc, char *argv[])
     spinningCube->setUpdateCallback(new MoveAndRotateCB);
 
     osg::ref_ptr<osg::PositionAttitudeTransform> secondSpinningCube =
-        CreateSubGraph(root, loadedModel2, secondCubeTranslation);
+        CreateSubGraph(root, loadedModel, secondCubeTranslation);
     secondSpinningCube->setDataVariance(osg::Object::DYNAMIC);
     secondSpinningCube->setUpdateCallback(new MoveAndRotateSecondCube);
 
