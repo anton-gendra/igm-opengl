@@ -1,7 +1,7 @@
 # Material definitions for Cube
 
 newmtl default
-Kd 1.0 1.0 1.0
+Kd 1.0 0.0 1.0
 
 newmtl red
 Kd 1.0 0.0 0.0
