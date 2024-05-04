@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
 
    if (!loadedModel)
    {
-      std::cerr << "Problem opening '" << argv[1] << "'\n";
+      std::cerr << "Problem opening 'cube.obj'\n";
       exit(1);
    }
 
@@ -79,6 +79,7 @@ int main(int argc, char *argv[])
    // osg::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -4.0f));
    // translation = osg::translate(model, osg::vec3(sinf(2.1f * f) * 0.5f, cosf(1.7f * f) * 0.5f, sinf(1.3f * f) * cosf(1.5f * f) * 2.0f));
    osg::Vec3 translation = osg::Vec3(sinf(2.1f * f) * 0.5f, cosf(1.7f * f) * 0.5f, sinf(1.3f * f) * cosf(1.5f * f) * 2.0f);
+   std::cout << "Initial position: (" << translation.x() << ", " << translation.y() << ", " << translation.z() << ")\n";
 
    osg::ref_ptr<osg::Group> root(new osg::Group());
 
@@ -90,13 +91,18 @@ int main(int argc, char *argv[])
 
    // Play with the StateSets
    osg::ref_ptr<osg::StateSet> rootSS = root->getOrCreateStateSet();
-   rootSS->setMode(GL_LIGHTING, osg::StateAttribute::OFF); // (2)
+   rootSS->setMode(GL_LIGHTING, osg::StateAttribute::OFF);
 
    // Create a viewer, use it to view the model
    osgViewer::Viewer viewer;
    viewer.setSceneData(root);
    // Set background colour to black
    viewer.getCamera()->setClearColor(osg::Vec4(0.0f,0.0f,0.0f,0.0f));
+   // Set the camera initial position
+   osg::Vec3d eye(50.0, 50.0, 0.0);
+   osg::Vec3d center(0.0, 0.0, 0.0);
+   osg::Vec3d up(0.0, 1.0, 0.0);
+   viewer.getCamera()->setViewMatrixAsLookAt(eye, center, up);
 
    // Enter rendering loop
    viewer.run();
