@@ -28,14 +28,8 @@ CreateSubGraph(osg::ref_ptr<osg::Group> root,
     return pat;
 }
 
-class MoveAndRotateCB : public osg::NodeCallback
-{
-public:
-    MoveAndRotateCB() {}
-
-    virtual void operator()(osg::Node *node, osg::NodeVisitor *nv)
-    {
-        osg::PositionAttitudeTransform *pat = dynamic_cast<osg::PositionAttitudeTransform *>(node);
+void performTranslation(osg::Node *node, osg::NodeVisitor *nv, osg::Vec3 initialPos) {
+    osg::PositionAttitudeTransform *pat = dynamic_cast<osg::PositionAttitudeTransform *>(node);
         if (pat)
         {
             // Get animation time
@@ -44,8 +38,6 @@ public:
             float f = (float)currentTime * 0.3f;
 
             float depth = sinf(1.3f * f) * cosf(1.5f * f) * 2.0f;
-            // Initial tranlation and animated position
-            osg::Vec3 initialPos(0.0f, 0.0f, -4.0f);
             osg::Vec3 animatedPos(
                 sinf(2.1f * f) * 0.5f,
                 depth,
@@ -63,10 +55,36 @@ public:
             rotationX.makeRotate(osg::DegreesToRadians((float)currentTime * 81.0f), osg::Vec3(1.0f, 0.0f, 0.0f));
             osg::Quat rotation = rotationX * rotationY;
             pat->setAttitude(rotation);
-
-            // Continue
-            traverse(node, nv);
         }
+}
+
+class MoveAndRotateCB : public osg::NodeCallback
+{
+public:
+    MoveAndRotateCB() {}
+
+    virtual void operator()(osg::Node *node, osg::NodeVisitor *nv)
+    {
+        osg::Vec3 initialPos(0.0f, 0.0f, -4.0f);
+        performTranslation(node, nv, initialPos);
+
+        // Continue
+        traverse(node, nv);
+    }
+};
+
+class MoveAndRotateSecondCube : public osg::NodeCallback
+{
+public:
+    MoveAndRotateSecondCube() {}
+
+    virtual void operator()(osg::Node *node, osg::NodeVisitor *nv)
+    {
+        osg::Vec3 initialPos(0.5f, 0.5f, -4.5f);
+        performTranslation(node, nv, initialPos);
+
+        // Continue
+        traverse(node, nv);
     }
 };
 
@@ -82,7 +100,9 @@ int main(int argc, char *argv[])
     }
 
     osg::Vec3 translation = osg::Vec3(0.0f, -5.5f, 0.0f);
-    std::cout << "Initial position: (" << translation.x() << ", " << translation.y() << ", " << translation.z() << ")\n";
+    osg::Vec3 secondCubeTranslation = osg::Vec3(0.0f, -5.8f, 1.0f);
+    std::cout << "1C Initial position: (" << translation.x() << ", " << translation.y() << ", " << translation.z() << ")\n";
+    std::cout << "2C Initial position: (" << secondCubeTranslation.x() << ", " << secondCubeTranslation.y() << ", " << secondCubeTranslation.z() << ")\n";
 
     osg::ref_ptr<osg::Group> root(new osg::Group());
 
@@ -90,6 +110,11 @@ int main(int argc, char *argv[])
         CreateSubGraph(root, loadedModel, translation);
     spinningCube->setDataVariance(osg::Object::DYNAMIC);
     spinningCube->setUpdateCallback(new MoveAndRotateCB);
+
+    osg::ref_ptr<osg::PositionAttitudeTransform> secondSpinningCube =
+        CreateSubGraph(root, loadedModel, secondCubeTranslation);
+    secondSpinningCube->setDataVariance(osg::Object::DYNAMIC);
+    secondSpinningCube->setUpdateCallback(new MoveAndRotateSecondCube);
 
     // Play with the StateSets
     osg::ref_ptr<osg::StateSet> rootSS = root->getOrCreateStateSet();
