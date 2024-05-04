@@ -23,7 +23,6 @@ CreateSubGraph(osg::ref_ptr<osg::Group> root,
 
     root->addChild(pat);
     pat->addChild(model);
-    // pat->setDataVariance(osg::Object::DYNAMIC);
     pat->setPosition(translation);
 
     return pat;
@@ -82,18 +81,6 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    /*
-       glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -4.0f));
-       model = glm::translate(model, glm::vec3(sinf(2.1f * f) * 0.5f, cosf(1.7f * f) * 0.5f, sinf(1.3f * f) * cosf(1.5f * f) * 2.0f));
-       model = glm::rotate(model, glm::radians((float)currentTime * 45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-       model = glm::rotate(model, glm::radians((float)currentTime * 81.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    */
-
-    // Create the scene graph
-    // const double translation = 2.2 * loadedModel->getBound().radius(); // (1)
-
-    // osg::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -4.0f));
-    // translation = osg::translate(model, osg::vec3(sinf(2.1f * f) * 0.5f, cosf(1.7f * f) * 0.5f, sinf(1.3f * f) * cosf(1.5f * f) * 2.0f));
     osg::Vec3 translation = osg::Vec3(0.0f, -5.5f, 0.0f);
     std::cout << "Initial position: (" << translation.x() << ", " << translation.y() << ", " << translation.z() << ")\n";
 
@@ -103,7 +90,6 @@ int main(int argc, char *argv[])
         CreateSubGraph(root, loadedModel, translation);
     spinningCube->setDataVariance(osg::Object::DYNAMIC);
     spinningCube->setUpdateCallback(new MoveAndRotateCB);
-    // osg::ref_ptr<osg::PositionAttitudeTransform> spinningCube1 = CreateSubGraph(root, loadedModel, translation);
 
     // Play with the StateSets
     osg::ref_ptr<osg::StateSet> rootSS = root->getOrCreateStateSet();
@@ -112,8 +98,9 @@ int main(int argc, char *argv[])
     // Create a viewer, use it to view the model
     osgViewer::Viewer viewer;
     viewer.setSceneData(root);
+
     // Set background colour to black
-    viewer.getCamera()->setClearColor(osg::Vec4(0.0f,0.0f,0.0f,0.0f));
+    viewer.getCamera()->setClearColor(osg::Vec4(0.0f, 0.0f, 0.0f, 0.0f));
 
     // Enter rendering loop
     viewer.run();
