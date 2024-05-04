@@ -40,18 +40,18 @@ public:
             dynamic_cast<osg::PositionAttitudeTransform*>(node);
         if (pat)
         {
-            // Calcular nueva orientación
+            // New orientation
             osg::Quat newAttitude;
-            newAttitude.makeRotate(_angle, osg::Vec3(0., 0., 1.)); // Rotación alrededor del eje Z
+            newAttitude.makeRotate(_angle, osg::Vec3(0., 0., 1.)); // Rotatioin
             
-            // Configurar la posición y la orientación
-            pat->setPosition(osg::Vec3(-6., 0., 0.)); // Traslación constante
+            // Configure position
+            pat->setPosition(osg::Vec3(-6., 0., 0.)); // Constant translationi
             pat->setAttitude(newAttitude);
 
-            // Incrementar el ángulo para la próxima iteración
+            // Increase angle for next rotation
             _angle += 0.01;
 
-            // Continuar con el recorrido
+            // Continue
             traverse(node, nv);
         }
     }
@@ -62,15 +62,8 @@ protected:
 
 int main(int argc, char *argv[])
 {
-   // Check command-line parameters
-   if (argc != 2)
-   {
-      std::cerr << "Usage: " << argv[0] << " <model file>\n";
-      exit(1);
-   }
-
    // Load the model
-   osg::ref_ptr<osg::Node> loadedModel = osgDB::readNodeFile(argv[1]);
+   osg::ref_ptr<osg::Node> loadedModel = osgDB::readNodeFile("cube.obj");
 
    if (!loadedModel)
    {
@@ -102,6 +95,8 @@ int main(int argc, char *argv[])
    // Create a viewer, use it to view the model
    osgViewer::Viewer viewer;
    viewer.setSceneData(root);
+   // Set background colour to black
+   viewer.getCamera()->setClearColor(osg::Vec4(0.0f,0.0f,0.0f,0.0f));
 
    // Enter rendering loop
    viewer.run();
