@@ -28,7 +28,7 @@ CreateSubGraph(osg::ref_ptr<osg::Group> root,
     return pat;
 }
 
-void performTranslation(osg::Node *node, osg::NodeVisitor *nv, osg::Vec3 initialPos) {
+void performTranslation(osg::Node *node, osg::NodeVisitor *nv, osg::Vec3 initialPos, float desyncFactor) {
     osg::PositionAttitudeTransform *pat = dynamic_cast<osg::PositionAttitudeTransform *>(node);
         if (pat)
         {
@@ -37,12 +37,12 @@ void performTranslation(osg::Node *node, osg::NodeVisitor *nv, osg::Vec3 initial
             double currentTime = globalTimer.time_s();
             float f = (float)currentTime * 0.3f;
 
-            float depth = sinf(1.3f * f) * cosf(1.5f * f) * 2.0f;
+            float depth = sinf(1.3f * f) * cosf(1.5f * f) * 2.0f * desyncFactor;
             osg::Vec3 animatedPos(
-                sinf(2.1f * f) * 0.5f,
+                sinf(2.1f * f) * 0.5f * desyncFactor,
                 depth,
-                cosf(1.7f * f) * 0.5f);
-            pat->setPosition(animatedPos);
+                cosf(1.7f * f) * 0.5f * desyncFactor);
+            pat->setPosition(initialPos + animatedPos);
 
             // Scale based on depth
             float scaleValue = 1.0f + (depth / 4.0f);
@@ -51,8 +51,8 @@ void performTranslation(osg::Node *node, osg::NodeVisitor *nv, osg::Vec3 initial
 
             // Multiple axis combined rotations
             osg::Quat rotationY, rotationX;
-            rotationY.makeRotate(osg::DegreesToRadians((float)currentTime * 45.0f), osg::Vec3(0.0f, 1.0f, 0.0f));
-            rotationX.makeRotate(osg::DegreesToRadians((float)currentTime * 81.0f), osg::Vec3(1.0f, 0.0f, 0.0f));
+            rotationY.makeRotate(osg::DegreesToRadians((float)currentTime * 45.0f * desyncFactor), osg::Vec3(0.0f, 1.0f, 0.0f));
+            rotationX.makeRotate(osg::DegreesToRadians((float)currentTime * 81.0f * desyncFactor), osg::Vec3(1.0f, 0.0f, 0.0f));
             osg::Quat rotation = rotationX * rotationY;
             pat->setAttitude(rotation);
         }
@@ -65,8 +65,8 @@ public:
 
     virtual void operator()(osg::Node *node, osg::NodeVisitor *nv)
     {
-        osg::Vec3 initialPos(0.0f, 0.0f, -4.0f);
-        performTranslation(node, nv, initialPos);
+        osg::Vec3 initialPos(-1.0f, 0.0f, 0.0f);
+        performTranslation(node, nv, initialPos, 1.0);
 
         // Continue
         traverse(node, nv);
@@ -80,8 +80,8 @@ public:
 
     virtual void operator()(osg::Node *node, osg::NodeVisitor *nv)
     {
-        osg::Vec3 initialPos(0.5f, 0.5f, -4.5f);
-        performTranslation(node, nv, initialPos);
+        osg::Vec3 initialPos(1.0f, 2.5f, 0.0f);
+        performTranslation(node, nv, initialPos, 1.25);
 
         // Continue
         traverse(node, nv);
@@ -92,6 +92,7 @@ int main(int argc, char *argv[])
 {
     // Load the model
     osg::ref_ptr<osg::Node> loadedModel = osgDB::readNodeFile("cube.obj");
+    osg::ref_ptr<osg::Node> loadedModel2 = osgDB::readNodeFile("cube.obj");
 
     if (!loadedModel)
     {
@@ -100,7 +101,7 @@ int main(int argc, char *argv[])
     }
 
     osg::Vec3 translation = osg::Vec3(0.0f, -5.5f, 0.0f);
-    osg::Vec3 secondCubeTranslation = osg::Vec3(0.0f, -5.8f, 1.0f);
+    osg::Vec3 secondCubeTranslation = osg::Vec3(0.0f, -5.5f, 0.0f);
     std::cout << "1C Initial position: (" << translation.x() << ", " << translation.y() << ", " << translation.z() << ")\n";
     std::cout << "2C Initial position: (" << secondCubeTranslation.x() << ", " << secondCubeTranslation.y() << ", " << secondCubeTranslation.z() << ")\n";
 
@@ -112,7 +113,7 @@ int main(int argc, char *argv[])
     spinningCube->setUpdateCallback(new MoveAndRotateCB);
 
     osg::ref_ptr<osg::PositionAttitudeTransform> secondSpinningCube =
-        CreateSubGraph(root, loadedModel, secondCubeTranslation);
+        CreateSubGraph(root, loadedModel2, secondCubeTranslation);
     secondSpinningCube->setDataVariance(osg::Object::DYNAMIC);
     secondSpinningCube->setUpdateCallback(new MoveAndRotateSecondCube);
 
