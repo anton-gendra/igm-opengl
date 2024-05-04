@@ -39,25 +39,33 @@ public:
         osg::PositionAttitudeTransform *pat = dynamic_cast<osg::PositionAttitudeTransform *>(node);
         if (pat)
         {
-            // Obtener el tiempo actual para las animaciones
+            // Get animation time
             // double currentTime = nv->getFrameStamp()->getSimulationTime();
             double currentTime = globalTimer.time_s();
+            float f = (float)currentTime * 0.3f;
 
-            // Traslación inicial y animada basada en funciones trigonométricas
+            float depth = sinf(1.3f * f) * cosf(1.5f * f) * 2.0f;
+            // Initial tranlation and animated position
             osg::Vec3 initialPos(0.0f, 0.0f, -4.0f);
             osg::Vec3 animatedPos(
-                sinf(2.1f * currentTime * 0.3) * 0.5f,
-                cosf(1.7f * currentTime * 0.3) * 0.5f,
-                sinf(1.3f * currentTime * 0.3) * cosf(1.5f * currentTime * 0.3) * 2.0f);
+                sinf(2.1f * f) * 0.5f,
+                depth,
+                cosf(1.7f * f) * 0.5f);
             pat->setPosition(animatedPos);
 
-            // Rotaciones combinadas sobre múltiples ejes
+            // Scale based on depth
+            float scaleValue = 1.0f + (depth / 4.0f);
+            osg::Vec3 scaleVec(scaleValue, scaleValue, scaleValue);
+            pat->setScale(scaleVec);
+
+            // Multiple axis combined rotations
             osg::Quat rotationY, rotationX;
             rotationY.makeRotate(osg::DegreesToRadians((float)currentTime * 45.0f), osg::Vec3(0.0f, 1.0f, 0.0f));
             rotationX.makeRotate(osg::DegreesToRadians((float)currentTime * 81.0f), osg::Vec3(1.0f, 0.0f, 0.0f));
-            pat->setAttitude(rotationY * rotationX);
+            osg::Quat rotation = rotationX * rotationY;
+            pat->setAttitude(rotation);
 
-            // Continuar con el recorrido
+            // Continue
             traverse(node, nv);
         }
     }
@@ -65,19 +73,12 @@ public:
 
 int main(int argc, char *argv[])
 {
-    // Check command-line parameters
-    if (argc != 2)
-    {
-        std::cerr << "Usage: " << argv[0] << " <model file>\n";
-        exit(1);
-    }
-
     // Load the model
-    osg::ref_ptr<osg::Node> loadedModel = osgDB::readNodeFile(argv[1]);
+    osg::ref_ptr<osg::Node> loadedModel = osgDB::readNodeFile("cube.obj");
 
     if (!loadedModel)
     {
-        std::cerr << "Problem opening '" << argv[1] << "'\n";
+        std::cerr << "Problem opening 'cube.obj'\n";
         exit(1);
     }
 
@@ -90,12 +91,11 @@ int main(int argc, char *argv[])
 
     // Create the scene graph
     // const double translation = 2.2 * loadedModel->getBound().radius(); // (1)
-    double currentTime = globalTimer.time_s();
 
-    float f = (float)currentTime * 0.3f;
     // osg::mat4 translation = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -4.0f));
     // translation = osg::translate(model, osg::vec3(sinf(2.1f * f) * 0.5f, cosf(1.7f * f) * 0.5f, sinf(1.3f * f) * cosf(1.5f * f) * 2.0f));
-    osg::Vec3 translation = osg::Vec3(0, 0, 0);
+    osg::Vec3 translation = osg::Vec3(0.0f, -5.5f, 0.0f);
+    std::cout << "Initial position: (" << translation.x() << ", " << translation.y() << ", " << translation.z() << ")\n";
 
     osg::ref_ptr<osg::Group> root(new osg::Group());
 
@@ -107,11 +107,13 @@ int main(int argc, char *argv[])
 
     // Play with the StateSets
     osg::ref_ptr<osg::StateSet> rootSS = root->getOrCreateStateSet();
-    rootSS->setMode(GL_LIGHTING, osg::StateAttribute::OFF); // (2)
+    rootSS->setMode(GL_LIGHTING, osg::StateAttribute::ON);
 
     // Create a viewer, use it to view the model
     osgViewer::Viewer viewer;
     viewer.setSceneData(root);
+    // Set background colour to black
+    viewer.getCamera()->setClearColor(osg::Vec4(0.0f,0.0f,0.0f,0.0f));
 
     // Enter rendering loop
     viewer.run();
