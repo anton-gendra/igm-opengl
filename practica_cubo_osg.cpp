@@ -9,6 +9,8 @@
 
 #include <osg/Timer>
 #include <osg/MatrixTransform>
+#include <osg/Texture2D>
+#include <osg/TexGen>
 
 // Crear un timer global
 static osg::Timer globalTimer;
@@ -116,6 +118,20 @@ int main(int argc, char *argv[])
         CreateSubGraph(root, loadedModel, secondCubeTranslation);
     secondSpinningCube->setDataVariance(osg::Object::DYNAMIC);
     secondSpinningCube->setUpdateCallback(new MoveAndRotateSecondCube);
+
+    // Texture
+    // Do the texturing stuff
+    osg::ref_ptr<osg::StateSet> ss = loadedModel->getOrCreateStateSet();
+
+    osg::ref_ptr<osg::Image> image = osgDB::readImageFile("texture.jpg"); // (1)
+    osg::ref_ptr<osg::Texture2D> tex(new osg::Texture2D());               // (1)
+    tex->setImage(image);                                                 // (1)
+    ss->setTextureAttributeAndModes(0, tex);                              // (1)
+
+    osg::ref_ptr<osg::TexGen> texGen(new osg::TexGen());                // (2)
+    texGen->setPlane(osg::TexGen::S, osg::Plane(1.0, 1.0, 0.0, 0.0)); // (2)
+    texGen->setPlane(osg::TexGen::T, osg::Plane(0.0, 1.0, 1.0, 0.0)); // (2)
+    ss->setTextureAttributeAndModes(0, texGen);                         // (2)
 
     // Light
     osg::ref_ptr<osg::PositionAttitudeTransform> lightPAT(
